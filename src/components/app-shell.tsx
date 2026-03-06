@@ -5,7 +5,6 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { usePathname } from "next/navigation";
 import {
-  Activity,
   Archive,
   BarChart3,
   ChevronLeft,
@@ -77,13 +76,6 @@ const navItems: NavItem[] = [
     label: "Users",
     description: "Approved-user access and credential management.",
     icon: Users,
-    adminOnly: true,
-  },
-  {
-    href: "/admin/audit",
-    label: "Audit Logs",
-    description: "Authentication and operational activity trail.",
-    icon: Activity,
     adminOnly: true,
   },
 ];
