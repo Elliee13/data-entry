@@ -102,12 +102,104 @@ Operational behavior:
 
 ## Deployment Notes For Vercel
 
-1. Create a PostgreSQL database and set `DATABASE_URL`.
-2. Set all runtime env vars in the Vercel project.
-3. Ensure `CRON_SECRET` exists in Vercel so the cron request includes the bearer token expected by the route.
-4. Configure a verified sender domain or sender address for Resend.
-5. Run `npm run prisma:deploy` against production during deployment or as a pre-deploy step.
-6. Run `npm run db:seed` once with the intended approved internal users.
+### Recommended Production Flow
+
+1. Push to GitHub.
+2. In Vercel, click `Add New Project` and import this repository.
+3. Let Vercel detect `Next.js` automatically.
+4. Leave the framework preset and default build command in place.
+5. Add the required environment variables in the Vercel project before the first production deployment.
+6. Redeploy after saving the environment variables.
+7. Apply database migrations to production.
+8. Seed the initial approved users once.
+
+### Required Vercel Environment Variables
+
+Production:
+
+- `DATABASE_URL`
+- `AUTH_SECRET`
+- `NEXTAUTH_URL`
+- `CRON_SECRET`
+- `EMAIL_MODE`
+- `REPORT_TO_EMAIL`
+- `APP_TIMEZONE`
+
+Only required when `EMAIL_MODE="resend"`:
+
+- `RESEND_API_KEY`
+- `REPORT_FROM_EMAIL`
+
+Seed values can stay out of Vercel after first-time setup if you seed manually from a secure local shell:
+
+- `SEED_ADMIN_EMAIL`
+- `SEED_ADMIN_NAME`
+- `SEED_ADMIN_PASSWORD`
+- `SEED_USER_EMAIL`
+- `SEED_USER_NAME`
+- `SEED_USER_PASSWORD`
+
+Recommended production values:
+
+- `NEXTAUTH_URL="https://<your-production-domain>"`
+- `APP_TIMEZONE="America/New_York"`
+- `EMAIL_MODE="disabled"` until a verified Resend sender domain is ready
+
+### Preview Deployment Guidance
+
+- Do not point Preview deployments at the production database if you expect schema changes.
+- Vercel Preview environments should use a separate preview/staging `DATABASE_URL`.
+- If you do not need preview report delivery, keep `EMAIL_MODE="disabled"` for Preview.
+- Add branch-specific Preview environment variables in Vercel when needed.
+
+### Database Migrations
+
+This repository now includes a GitHub Actions workflow at [.github/workflows/prisma-migrate-production.yml](/c:/Users/ellie/Downloads/newWeb/.github/workflows/prisma-migrate-production.yml).
+
+What it does:
+
+- runs on pushes to `main`
+- only runs when `prisma/migrations/**` or `prisma/schema.prisma` changes
+- executes `npx prisma migrate deploy` against the `DATABASE_URL` GitHub secret
+
+Required GitHub repository secret:
+
+- `DATABASE_URL`
+
+This keeps schema deployment separate from Vercel Preview builds, which is safer than running migrations during every Vercel build.
+
+### First-Time Production Setup Checklist
+
+1. Import the GitHub repo into Vercel.
+2. Add Production environment variables in Vercel.
+3. Set `CRON_SECRET` in Vercel so cron requests automatically include the `Bearer` authorization header.
+4. Trigger the first Production deployment.
+5. Add the `DATABASE_URL` secret to GitHub Actions.
+6. If migrations already exist, run `npm run prisma:deploy` once against production or push a commit that includes the migration files.
+7. Seed the first admin user:
+
+```bash
+npm run db:seed
+```
+
+8. Sign in to the deployed app and verify:
+   - login works
+   - dashboard loads
+   - entry creation works
+   - admin report history loads
+   - cron route is protected
+
+### Vercel Cron
+
+- Cron config lives in [vercel.json](/c:/Users/ellie/Downloads/newWeb/vercel.json).
+- Vercel automatically sends `Authorization: Bearer <CRON_SECRET>` when `CRON_SECRET` is set in the project.
+- The app still performs its own `America/New_York` due-check before generating a weekly report.
+
+### Email Delivery
+
+- The safest deployment path right now is `EMAIL_MODE="disabled"`.
+- In that mode, admins can generate and download CSV/XLSX manually from the report history page.
+- Switch to `EMAIL_MODE="resend"` only after `RESEND_API_KEY` and a verified `REPORT_FROM_EMAIL` domain are ready.
 
 ## Manual Test Checklist
 
