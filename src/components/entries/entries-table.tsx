@@ -117,29 +117,30 @@ export function EntriesTable({
   }
 
   return (
-    <section className="surface-inner overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-5">
+    <section className="overflow-hidden rounded-md border bg-card shadow-none">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
         <div>
-          <p className="section-eyebrow">Register</p>
-          <h3 className="mt-2 text-xl font-semibold text-[var(--foreground)]">{title}</h3>
-          <p className="mt-2 text-sm text-[var(--muted-foreground)]">{description}</p>
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
+          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
         </div>
-        <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-          <Input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search event, location, coordinator, sport..."
-            className="pl-11"
-          />
+        <div className="w-full max-w-sm">
+          <div className="relative w-full max-w-sm">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search event, location, coordinator, sport..."
+              className="h-9 rounded-md bg-background pl-9 shadow-none"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="overflow-x-auto">
-        <Table className="min-w-[920px]">
+      <div className="max-h-[24rem] overflow-auto">
+        <Table className="min-w-[760px]">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
               <TableHead>
@@ -160,7 +161,7 @@ export function EntriesTable({
               <TableHead>
                 <SortButton label="Date" column="eventDate" sortKey={sortKey} direction={direction} onSort={handleSort} />
               </TableHead>
-              <TableHead className="w-[88px] text-right">Actions</TableHead>
+              <TableHead className="sticky right-0 w-[88px] bg-card text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -174,20 +175,25 @@ export function EntriesTable({
                         {entry.coordinator} · {entry.sport}
                       </p>
                     </div>
-                    <Badge variant={entry.isArchived ? "success" : "warning"}>
+                    <Badge variant="outline" className="rounded-md px-2 py-0.5 text-[11px] tracking-normal">
                       {entry.isArchived ? "Archived" : "Active"}
                     </Badge>
                   </div>
                 </TableCell>
-                <TableCell className="text-[var(--muted-foreground)]">{entry.location}</TableCell>
+                <TableCell className="text-muted-foreground">{entry.location}</TableCell>
                 <TableCell className="text-right font-medium">{formatInteger(entry.totalTeams)}</TableCell>
                 <TableCell className="text-right font-medium">{formatInteger(entry.shirtsSold)}</TableCell>
                 <TableCell className="text-right font-semibold">{formatCurrency(entry.totalSales)}</TableCell>
-                <TableCell className="text-[var(--muted-foreground)]">{entry.eventDate}</TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-muted-foreground">{entry.eventDate}</TableCell>
+                <TableCell className="sticky right-0 bg-card text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" aria-label={`Open actions for ${entry.eventName}`}>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 rounded-md text-muted-foreground"
+                        aria-label={`Open actions for ${entry.eventName}`}
+                      >
                         <MoreHorizontal className="h-4 w-4" />
                       </Button>
                     </DropdownMenuTrigger>

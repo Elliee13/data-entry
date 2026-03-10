@@ -116,17 +116,16 @@ export function AuditLogTable({ logs }: AuditLogTableProps) {
   const pageItems = sortedLogs.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
 
   return (
-    <Card className="overflow-hidden">
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-5">
+    <Card className="overflow-hidden rounded-md border shadow-none">
+      <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
         <div>
-          <p className="section-eyebrow">Activity Trail</p>
-          <h3 className="mt-2 text-xl font-semibold text-[var(--foreground)]">System Audit Log</h3>
-          <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+          <h3 className="text-base font-semibold text-foreground">System Audit Log</h3>
+          <p className="mt-1 text-sm text-muted-foreground">
             Search and review the recorded operational trail without modifying the underlying events.
           </p>
         </div>
         <div className="relative w-full max-w-sm">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(event) => {
@@ -134,12 +133,12 @@ export function AuditLogTable({ logs }: AuditLogTableProps) {
               setPage(1);
             }}
             placeholder="Search action, actor, entity, IP..."
-            className="pl-11"
+            className="h-9 rounded-md bg-background pl-9 shadow-none"
           />
         </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="max-h-[24rem] overflow-auto">
         <Table className="min-w-[1100px]">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -163,7 +162,9 @@ export function AuditLogTable({ logs }: AuditLogTableProps) {
             {pageItems.map((log) => (
               <TableRow key={log.id}>
                 <TableCell>
-                  <Badge variant="outline">{log.action.replaceAll("_", " ")}</Badge>
+                  <Badge variant="outline" className="rounded-md px-2 py-0.5 text-[11px] tracking-normal">
+                    {log.action.replaceAll("_", " ")}
+                  </Badge>
                 </TableCell>
                 <TableCell>
                   <p className="font-semibold text-[var(--foreground)]">{log.entityType}</p>
