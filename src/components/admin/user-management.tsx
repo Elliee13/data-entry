@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, MoreHorizontal, Search } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowDown, ArrowUp, ArrowUpDown, LoaderCircle, MoreHorizontal, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,6 +62,7 @@ function SortButton({
 }
 
 export function UserManagement({ users }: UserManagementProps) {
+  const router = useRouter();
   const [createForm, setCreateForm] = useState({
     email: "",
     name: "",
@@ -82,6 +85,8 @@ export function UserManagement({ users }: UserManagementProps) {
   );
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
+  const [savingUserId, setSavingUserId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("name");
   const [direction, setDirection] = useState<"asc" | "desc">("asc");
@@ -91,6 +96,7 @@ export function UserManagement({ users }: UserManagementProps) {
     event.preventDefault();
     setMessage(null);
     setError(null);
+    setIsCreating(true);
 
     const response = await fetch("/api/admin/users", {
       method: "POST",
@@ -101,18 +107,32 @@ export function UserManagement({ users }: UserManagementProps) {
     });
 
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    setIsCreating(false);
 
     if (!response.ok) {
       setError(payload?.error ?? "Unable to create user.");
+      toast.error("User creation failed", {
+        description: payload?.error ?? "Unable to create user.",
+      });
       return;
     }
 
-    window.location.reload();
+    toast.success("User created", {
+      description: "The approved user has been added.",
+    });
+    setCreateForm({
+      email: "",
+      name: "",
+      password: "",
+      role: "USER",
+    });
+    router.refresh();
   }
 
   async function handleUpdate(userId: string) {
     setMessage(null);
     setError(null);
+    setSavingUserId(userId);
 
     const response = await fetch(`/api/admin/users/${userId}`, {
       method: "PATCH",
@@ -123,14 +143,21 @@ export function UserManagement({ users }: UserManagementProps) {
     });
 
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
+    setSavingUserId(null);
 
     if (!response.ok) {
       setError(payload?.error ?? "Unable to update user.");
+      toast.error("User update failed", {
+        description: payload?.error ?? "Unable to update user.",
+      });
       return;
     }
 
     setEditingUserId(null);
-    window.location.reload();
+    toast.success("User updated", {
+      description: "The approved user record has been updated.",
+    });
+    router.refresh();
   }
 
   function handleSort(nextSortKey: SortKey) {
@@ -200,12 +227,14 @@ export function UserManagement({ users }: UserManagementProps) {
               required
               placeholder="Email address"
               value={createForm.email}
+              disabled={isCreating}
               onChange={(event) => setCreateForm((current) => ({ ...current, email: event.target.value }))}
             />
             <Input
               required
               placeholder="Full name"
               value={createForm.name}
+              disabled={isCreating}
               onChange={(event) => setCreateForm((current) => ({ ...current, name: event.target.value }))}
             />
             <Input
@@ -213,17 +242,28 @@ export function UserManagement({ users }: UserManagementProps) {
               placeholder="Temporary password"
               type="password"
               value={createForm.password}
+              disabled={isCreating}
               onChange={(event) => setCreateForm((current) => ({ ...current, password: event.target.value }))}
             />
             <select
               value={createForm.role}
+              disabled={isCreating}
               onChange={(event) => setCreateForm((current) => ({ ...current, role: event.target.value as "ADMIN" | "USER" }))}
               className="field-input"
             >
               <option value="USER">Standard User</option>
               <option value="ADMIN">Admin</option>
             </select>
-            <Button type="submit">Create User</Button>
+            <Button type="submit" disabled={isCreating}>
+              {isCreating ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                "Create User"
+              )}
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -233,19 +273,30 @@ export function UserManagement({ users }: UserManagementProps) {
           {error}
         </div>
       ) : null}
+      {isCreating ? (
+        <div className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          Creating approved user...
+        </div>
+      ) : null}
+      {savingUserId ? (
+        <div className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          Saving user changes...
+        </div>
+      ) : null}
       {message ? <p className="text-sm text-[var(--muted-foreground)]">{message}</p> : null}
 
-      <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-5">
+      <Card className="overflow-hidden rounded-md border shadow-none">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
           <div>
-            <p className="section-eyebrow">Directory</p>
-            <h3 className="mt-2 text-xl font-semibold text-[var(--foreground)]">Approved Users</h3>
-            <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+            <h3 className="text-base font-semibold text-foreground">Approved Users</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Search and maintain approved internal accounts without changing access rules or backend behavior.
             </p>
           </div>
           <div className="relative w-full max-w-sm">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(event) => {
@@ -253,13 +304,13 @@ export function UserManagement({ users }: UserManagementProps) {
                 setPage(1);
               }}
               placeholder="Search name, email, role, status..."
-              className="pl-11"
+              className="h-9 rounded-md bg-background pl-9 shadow-none"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <Table className="min-w-[1020px]">
+        <div className="max-h-[24rem] overflow-auto">
+          <Table className="min-w-[860px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>
@@ -280,13 +331,14 @@ export function UserManagement({ users }: UserManagementProps) {
                 <TableHead>
                   <SortButton label="Created" column="createdAt" sortKey={sortKey} direction={direction} onSort={handleSort} />
                 </TableHead>
-                <TableHead className="w-[88px] text-right">Actions</TableHead>
+                <TableHead className="sticky right-0 w-[88px] bg-card text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {pageItems.map((user) => {
                 const isEditing = editingUserId === user.id;
                 const draft = drafts[user.id];
+                const isSavingThisUser = savingUserId === user.id;
 
                 return (
                   <TableRow key={user.id}>
@@ -294,6 +346,7 @@ export function UserManagement({ users }: UserManagementProps) {
                       {isEditing ? (
                         <Input
                           value={draft.name}
+                          disabled={isSavingThisUser}
                           onChange={(event) =>
                             setDrafts((current) => ({
                               ...current,
@@ -304,15 +357,16 @@ export function UserManagement({ users }: UserManagementProps) {
                       ) : (
                         <div>
                           <p className="font-semibold">{user.name}</p>
-                          <p className="mt-1 text-xs text-[var(--muted-foreground)]">Updated {formatDateTime(user.updatedAt)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">Updated {formatDateTime(user.updatedAt)}</p>
                         </div>
                       )}
                     </TableCell>
-                    <TableCell className="text-[var(--muted-foreground)]">{user.email}</TableCell>
+                    <TableCell className="text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
                       {isEditing ? (
                         <select
                           value={draft.role}
+                          disabled={isSavingThisUser}
                           onChange={(event) =>
                             setDrafts((current) => ({
                               ...current,
@@ -325,7 +379,9 @@ export function UserManagement({ users }: UserManagementProps) {
                           <option value="ADMIN">Admin</option>
                         </select>
                       ) : (
-                        <Badge variant="outline">{user.role}</Badge>
+                        <Badge variant="outline" className="rounded-md px-2 py-0.5 text-[11px] tracking-normal">
+                          {user.role}
+                        </Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -334,6 +390,7 @@ export function UserManagement({ users }: UserManagementProps) {
                           <input
                             type="checkbox"
                             checked={draft.isActive}
+                            disabled={isSavingThisUser}
                             onChange={(event) =>
                               setDrafts((current) => ({
                                 ...current,
@@ -344,22 +401,23 @@ export function UserManagement({ users }: UserManagementProps) {
                           Active
                         </label>
                       ) : (
-                        <Badge variant={user.isActive ? "success" : "danger"}>
+                        <Badge variant="outline" className="rounded-md px-2 py-0.5 text-[11px] tracking-normal">
                           {user.isActive ? "Active" : "Inactive"}
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-[var(--muted-foreground)]">
+                    <TableCell className="text-muted-foreground">
                       {user.lastLoginAt ? formatDateTime(user.lastLoginAt) : "Never"}
                     </TableCell>
-                    <TableCell className="text-[var(--muted-foreground)]">{formatDateTime(user.createdAt)}</TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-muted-foreground">{formatDateTime(user.createdAt)}</TableCell>
+                    <TableCell className="sticky right-0 bg-card text-right">
                       {isEditing ? (
                         <div className="flex justify-end gap-2">
                           <Input
                             type="password"
                             placeholder="New password"
                             value={draft.password}
+                            disabled={isSavingThisUser}
                             onChange={(event) =>
                               setDrafts((current) => ({
                                 ...current,
@@ -368,17 +426,29 @@ export function UserManagement({ users }: UserManagementProps) {
                             }
                             className="max-w-[11rem]"
                           />
-                          <Button size="sm" onClick={() => handleUpdate(user.id)}>
-                            Save
+                          <Button size="sm" onClick={() => handleUpdate(user.id)} disabled={isSavingThisUser}>
+                            {isSavingThisUser ? (
+                              <>
+                                <LoaderCircle className="h-4 w-4 animate-spin" />
+                                Saving...
+                              </>
+                            ) : (
+                              "Save"
+                            )}
                           </Button>
-                          <Button variant="outline" size="sm" onClick={() => setEditingUserId(null)}>
+                          <Button variant="outline" size="sm" onClick={() => setEditingUserId(null)} disabled={isSavingThisUser}>
                             Cancel
                           </Button>
                         </div>
                       ) : (
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" aria-label={`Open actions for ${user.name}`}>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 rounded-md text-muted-foreground"
+                              aria-label={`Open actions for ${user.name}`}
+                            >
                               <MoreHorizontal className="h-4 w-4" />
                             </Button>
                           </DropdownMenuTrigger>

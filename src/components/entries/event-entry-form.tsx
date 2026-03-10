@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CalendarDays, CircleDollarSign, Package2 } from "lucide-react";
+import { CalendarDays, CircleDollarSign, LoaderCircle, Package2 } from "lucide-react";
+import { toast } from "sonner";
 import { AGE_DIVISION_FIELDS } from "@/lib/constants";
 import { eventEntrySchema } from "@/lib/validation/event-entry";
 import { formatCurrency } from "@/lib/utils";
@@ -205,10 +206,19 @@ export function EventEntryForm({
 
     if (!response.ok) {
       setSubmitError(payload?.error ?? "The request could not be completed.");
+      toast.error("Unable to save entry", {
+        description: payload?.error ?? "The request could not be completed.",
+      });
       return;
     }
 
     setReviewData(null);
+    toast.success(mode === "create" ? "Entry created" : "Entry updated", {
+      description:
+        mode === "create"
+          ? "The event entry has been added to the register."
+          : "The event entry changes have been saved.",
+    });
     router.push(mode === "create" ? "/dashboard" : `/entries/${entryId}`);
     router.refresh();
   }
@@ -285,6 +295,13 @@ export function EventEntryForm({
         </div>
       ) : null}
 
+      {isSubmitting ? (
+        <div className="mt-5 inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          Saving entry changes...
+        </div>
+      ) : null}
+
       <div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[28px] border border-[var(--border)] bg-[var(--card)] px-5 py-5 shadow-[var(--shadow-card)]">
         <div>
           <p className="section-eyebrow">Review Required</p>
@@ -327,7 +344,14 @@ export function EventEntryForm({
               Back to Editing
             </Button>
             <Button onClick={submitEntry} disabled={isSubmitting}>
-              {isSubmitting ? "Saving..." : submitLabel}
+              {isSubmitting ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                submitLabel
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

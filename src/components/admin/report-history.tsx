@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, MoreHorizontal, RefreshCcw, Search } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, LoaderCircle, MoreHorizontal, RefreshCcw, Search } from "lucide-react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -65,20 +66,10 @@ function SortButton({
   );
 }
 
-function getStatusVariant(status: ReportRecord["status"]) {
-  switch (status) {
-    case "SENT":
-      return "success";
-    case "FAILED":
-      return "danger";
-    default:
-      return "warning";
-  }
-}
-
 export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
+  const [pendingActionLabel, setPendingActionLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedWeekKey, setSelectedWeekKey] = useState(defaultWeekKey);
   const [query, setQuery] = useState("");
@@ -88,6 +79,7 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
 
   async function triggerManualRun() {
     setIsPending(true);
+    setPendingActionLabel("Generating weekly report...");
     setError(null);
 
     const response = await fetch("/api/admin/reports/run", {
@@ -102,17 +94,25 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
 
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
     setIsPending(false);
+    setPendingActionLabel(null);
 
     if (!response.ok) {
       setError(payload?.error ?? "Unable to trigger report.");
+      toast.error("Report run failed", {
+        description: payload?.error ?? "Unable to trigger report.",
+      });
       return;
     }
 
+    toast.success("Report generated", {
+      description: "The selected weekly report run completed.",
+    });
     router.refresh();
   }
 
   async function retryReport(reportId: string) {
     setIsPending(true);
+    setPendingActionLabel("Retrying report...");
     setError(null);
 
     const response = await fetch(`/api/admin/reports/${reportId}/retry`, {
@@ -121,12 +121,19 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
 
     const payload = (await response.json().catch(() => null)) as { error?: string } | null;
     setIsPending(false);
+    setPendingActionLabel(null);
 
     if (!response.ok) {
       setError(payload?.error ?? "Unable to retry report.");
+      toast.error("Retry failed", {
+        description: payload?.error ?? "Unable to retry report.",
+      });
       return;
     }
 
+    toast.success("Report retried", {
+      description: "The weekly report retry completed.",
+    });
     router.refresh();
   }
 
@@ -193,11 +200,19 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
             <Input
               type="date"
               value={selectedWeekKey}
+              disabled={isPending}
               onChange={(event) => setSelectedWeekKey(event.target.value)}
               className="w-[12rem]"
             />
             <Button onClick={triggerManualRun} disabled={isPending}>
-              {isPending ? "Processing..." : "Run Selected Week"}
+              {isPending ? (
+                <>
+                  <LoaderCircle className="h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                "Run Selected Week"
+              )}
             </Button>
           </div>
         </CardHeader>
@@ -208,18 +223,23 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
           {error}
         </div>
       ) : null}
+      {isPending && pendingActionLabel ? (
+        <div className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          {pendingActionLabel}
+        </div>
+      ) : null}
 
-      <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--border)] px-5 py-5">
+      <Card className="overflow-hidden rounded-md border shadow-none">
+        <div className="flex flex-wrap items-start justify-between gap-4 border-b px-6 py-4">
           <div>
-            <p className="section-eyebrow">History</p>
-            <h3 className="mt-2 text-xl font-semibold text-[var(--foreground)]">Weekly Report Runs</h3>
-            <p className="mt-2 text-sm text-[var(--muted-foreground)]">
+            <h3 className="text-base font-semibold text-foreground">Weekly Report Runs</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
               Search report history, inspect delivery status, and reopen failed manual runs.
             </p>
           </div>
           <div className="relative w-full max-w-sm">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={query}
               onChange={(event) => {
@@ -227,13 +247,13 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
                 setPage(1);
               }}
               placeholder="Search week, status, subject, recipient..."
-              className="pl-11"
+              className="h-9 rounded-md bg-background pl-9 shadow-none"
             />
           </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <Table className="min-w-[1080px]">
+        <div className="max-h-[24rem] overflow-auto">
+          <Table className="min-w-[840px]">
             <TableHeader>
               <TableRow className="hover:bg-transparent">
                 <TableHead>
@@ -255,7 +275,7 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
                   <SortButton label="Created" column="createdAt" sortKey={sortKey} direction={direction} onSort={handleSort} />
                 </TableHead>
                 <TableHead>Delivery</TableHead>
-                <TableHead className="w-[88px] text-right">Actions</TableHead>
+                <TableHead className="sticky right-0 w-[88px] bg-card text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -263,22 +283,29 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
                 <TableRow key={report.id}>
                   <TableCell className="font-semibold">{report.weekKey}</TableCell>
                   <TableCell>
-                    <Badge variant={getStatusVariant(report.status)}>{report.status}</Badge>
+                    <Badge variant="outline" className="rounded-md px-2 py-0.5 text-[11px] tracking-normal">
+                      {report.status}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="text-[var(--muted-foreground)]">{report.triggerType}</TableCell>
+                  <TableCell className="text-muted-foreground">{report.triggerType}</TableCell>
                   <TableCell className="text-right font-medium">{report.entryCount}</TableCell>
                   <TableCell className="text-right font-medium">{report.attemptCount}</TableCell>
-                  <TableCell className="text-[var(--muted-foreground)]">{formatDateTime(report.createdAt)}</TableCell>
+                  <TableCell className="text-muted-foreground">{formatDateTime(report.createdAt)}</TableCell>
                   <TableCell>
-                    <p className="font-medium text-[var(--foreground)]">
+                    <p className="font-medium text-foreground">
                       {report.sentAt ? formatDateTime(report.sentAt) : report.status === "GENERATED" ? "Manual delivery" : "Not sent"}
                     </p>
-                    <p className="mt-1 text-xs text-[var(--muted-foreground)]">{report.failureMessage ?? report.emailSubject}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{report.failureMessage ?? report.emailSubject}</p>
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="sticky right-0 bg-card text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" aria-label={`Open actions for report ${report.weekKey}`}>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-md text-muted-foreground"
+                          aria-label={`Open actions for report ${report.weekKey}`}
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -292,9 +319,9 @@ export function ReportHistory({ reports, defaultWeekKey }: ReportHistoryProps) {
                           Download XLSX
                         </DropdownMenuItem>
                         {report.status === "FAILED" ? (
-                          <DropdownMenuItem onSelect={() => retryReport(report.id)}>
-                            <RefreshCcw className="h-4 w-4" />
-                            Retry Report
+                          <DropdownMenuItem onSelect={() => retryReport(report.id)} disabled={isPending}>
+                            <RefreshCcw className={isPending ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+                            {isPending ? "Retrying..." : "Retry Report"}
                           </DropdownMenuItem>
                         ) : null}
                       </DropdownMenuContent>

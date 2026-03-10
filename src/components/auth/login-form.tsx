@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowRight, LockKeyhole, Mail } from "lucide-react";
+import { ArrowRight, LoaderCircle, LockKeyhole, Mail } from "lucide-react";
 import { signIn } from "next-auth/react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -28,9 +29,15 @@ export function LoginForm() {
 
     if (result?.error) {
       setError("The provided credentials were rejected.");
+      toast.error("Login failed", {
+        description: "The provided credentials were rejected.",
+      });
       return;
     }
 
+    toast.success("Signed in", {
+      description: "Redirecting to the dashboard.",
+    });
     window.location.href = result?.url ?? "/dashboard";
   }
 
@@ -72,9 +79,16 @@ export function LoginForm() {
         </div>
       ) : null}
 
+      {isPending ? (
+        <div className="inline-flex items-center gap-2 text-sm text-[var(--muted-foreground)]">
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          Validating credentials...
+        </div>
+      ) : null}
+
       <Button type="submit" className="w-full justify-between rounded-2xl" size="lg" disabled={isPending}>
         {isPending ? "Signing In..." : "Sign In"}
-        <ArrowRight className="h-4 w-4" />
+        {isPending ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
       </Button>
     </form>
   );
