@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { EntryAuditHistory } from "@/components/entries/entry-audit-history";
 import { DeleteEntryButton } from "@/components/entries/delete-entry-button";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { listAuditLogsForEntity } from "@/lib/audit";
 import { getEntryById } from "@/lib/entries";
 import { requireUser } from "@/lib/session";
 import { cn, formatCurrency, formatDateTime } from "@/lib/utils";
@@ -16,6 +18,7 @@ export default async function EntryDetailPage({ params }: EntryPageProps) {
   const user = await requireUser();
   const { entryId } = await params;
   const entry = await getEntryById(entryId);
+  const auditLogs = user.role === "ADMIN" ? await listAuditLogsForEntity("event_entry", entryId) : [];
 
   if (!entry) {
     notFound();
@@ -93,6 +96,8 @@ export default async function EntryDetailPage({ params }: EntryPageProps) {
           ))}
         </CardContent>
       </Card>
+
+      {user.role === "ADMIN" ? <EntryAuditHistory logs={auditLogs} /> : null}
     </div>
   );
 }

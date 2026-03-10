@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  FileClock,
   LogOut,
   Menu,
   ShieldCheck,
@@ -72,6 +73,13 @@ const navItems: NavItem[] = [
     adminOnly: true,
   },
   {
+    href: "/admin/history",
+    label: "Entry History",
+    description: "Review admin edits and entry-level change activity.",
+    icon: FileClock,
+    adminOnly: true,
+  },
+  {
     href: "/admin/users",
     label: "Users",
     description: "Approved-user access and credential management.",
@@ -113,6 +121,13 @@ function getPageMeta(pathname: string) {
     return {
       title: "Weekly Reports",
       description: "Generate, download, and monitor weekly reporting runs.",
+    };
+  }
+
+  if (pathname.startsWith("/admin/history")) {
+    return {
+      title: "Entry History",
+      description: "Review entry edits, acting users, and the recorded before-and-after field changes.",
     };
   }
 

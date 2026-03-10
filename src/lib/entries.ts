@@ -65,6 +65,35 @@ const entrySelect = {
 
 type EntryRecord = Prisma.EventEntryGetPayload<{ select: typeof entrySelect }>;
 
+const entryAuditFields = [
+  ["eventName", "Event Name"],
+  ["location", "Location"],
+  ["eventDate", "Date"],
+  ["weather", "Weather"],
+  ["coordinator", "Coordinator"],
+  ["sport", "Sport"],
+  ["shirtColor", "Shirt Color"],
+  ["totalTeams", "Total Teams"],
+  ["totalShirts", "Total Shirts"],
+  ["shirtsSold", "Shirts Sold"],
+  ["totalSales", "Total Sales"],
+  ["costOfProduct", "Cost of Product"],
+  ["laborCost", "Labor Cost"],
+  ["travelCost", "Travel"],
+  ["age5u", "5u"],
+  ["age6u", "6u"],
+  ["age7u", "7u"],
+  ["age8u", "8u"],
+  ["age9u", "9u"],
+  ["age10u", "10u"],
+  ["age11u", "11u"],
+  ["age12u", "12u"],
+  ["age13u", "13u"],
+  ["age14u", "14u"],
+  ["age15u", "15u"],
+  ["age16u", "16u"],
+] as const satisfies ReadonlyArray<readonly [keyof SerializedEntry, string]>;
+
 function toMoney(value: number) {
   return value.toFixed(2);
 }
@@ -80,6 +109,28 @@ function serializeEntry(entry: EntryRecord) {
 }
 
 export type SerializedEntry = ReturnType<typeof serializeEntry>;
+
+function buildEntryChangeSet(previous: SerializedEntry, next: SerializedEntry) {
+  const changes = entryAuditFields.flatMap(([field, label]) => {
+    const before = previous[field];
+    const after = next[field];
+
+    if (before === after) {
+      return [];
+    }
+
+    return [
+      {
+        field,
+        label,
+        before,
+        after,
+      },
+    ];
+  });
+
+  return changes;
+}
 
 function buildEntryData(input: EventEntryInput) {
   const week = getBusinessWeekForDate(input.eventDate);
@@ -167,10 +218,7 @@ export async function updateEventEntry(entryId: string, input: unknown, actorUse
       id: entryId,
       deletedAt: null,
     },
-    select: {
-      id: true,
-      isArchived: true,
-    },
+    select: entrySelect,
   });
 
   if (!existingEntry) {
@@ -193,6 +241,10 @@ export async function updateEventEntry(entryId: string, input: unknown, actorUse
     select: entrySelect,
   });
 
+  const previousEntry = serializeEntry(existingEntry);
+  const nextEntry = serializeEntry(entry);
+  const changes = buildEntryChangeSet(previousEntry, nextEntry);
+
   await createAuditLog({
     action: AuditAction.ENTRY_UPDATED,
     entityType: "event_entry",
@@ -202,6 +254,10 @@ export async function updateEventEntry(entryId: string, input: unknown, actorUse
       weekKey: entry.weekKey,
       eventDate: entry.eventDate,
       eventName: entry.eventName,
+      editedOnBehalfOfUserId: existingEntry.createdBy.id !== actorUserId ? existingEntry.createdBy.id : null,
+      editedOnBehalfOfName: existingEntry.createdBy.id !== actorUserId ? existingEntry.createdBy.name : null,
+      changedFieldCount: changes.length,
+      changes,
     },
   });
 
